@@ -112,3 +112,27 @@ resource "aws_ecs_cluster_capacity_providers" "foo" {
 ## Como usar
 
 Para utilizar esse projeto você deve clonar este repositório, e dentro dele rodar no terminal os comandos **terraform init** e **terraform apply**. Agora ao entrar na plataforma da AWS poderá checar o funcionamento de suas criações.
+
+Ao entrar na plataforma procure por **"ECS"**, será a primeira opção.
+
+![](img/dashboard.png)
+
+Dentro da área ECS selecione a aba **"clusters"** e verá o cluster que acabamos de criar.
+
+![](img/cluster.png)
+
+Selecione esse cluster e observe os serviços contidos nele.
+
+![](img/servico.png)
+
+Para checar as tarefas desse serviço pode-se seleciona-lo assim como feito com o cluster ou apenas trocar para a aba de tarefas.
+
+![](img/tarefa1.png)
+
+Ao selecionar a tarefa encontrará o IP público atribuído a ela e pelo qual você poderá acessar e visualizar o NGINX.
+
+![](img/tarefa2.png)
+
+![](img/nginx.png)
+
+Para apagar tudo que foi feito deve-se rodar o comando **terraform destroy**.
