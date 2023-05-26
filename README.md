@@ -11,7 +11,7 @@ Como nesse projeto iremos utilizar os recursos da AWS, é necessário baixar o a
 
 ### VPC
 
-Primeiramente deve-se criar uma **VPC**(Virtual Private Cloud), um serviço que permite isolar seus recursos em um ambiente virtual privado na nuvem, além da personalização de sua rede e controle de sua infraestrutura. Nesse projeto, uma VPC foi criada e a partir dela criou-se uma **sub-rede** pública com disponiblidade para a região configurada no AWS cli, "us-east-1". Ademais, para haver conexão com a internet foi criado um **gateway**, que a partir da da definição de **rota** foi associado com a sub-rede criada anteriormente. 
+Primeiramente deve-se criar uma **VPC**(Virtual Private Cloud), um serviço que permite isolar seus recursos em um ambiente virtual privado na nuvem, além da personalização de sua rede e controle de sua infraestrutura. Nesse projeto, uma VPC foi criada e a partir dela criou-se uma **sub-rede** pública com disponiblidade para a região configurada no AWS cli, "us-east-1". Ademais, para haver conexão com a internet foi criado um **gateway**, que a partir da definição de **rota** foi associado com a sub-rede criada anteriormente. 
 
 ```tf
 #Criando rede
@@ -108,6 +108,61 @@ resource "aws_ecs_cluster_capacity_providers" "foo" {
 }
 
 ```
+
+### Service e Task
+
+Finalizando nosso desenvolvimento devemos definir o **serviço** e a **tarefa**. O primeiro, que está na sub-rede criada anteriormente, permite o gerenciamento de um grupo de tarefas e monitorando o funcionamneto dessas, por exemplo caso uma tarefa pare de funcionar ou for finalizada o serviço irá inicializar uma nova automaticamente. É o serviço que gerenciará as regras de firewall criadas anteriormente e por estarmos usando Fargate vamos acionar seu recurso de gerar um IP público para dessa maneira conseguirmos acessar nossa aplicação pela internet. 
+
+```tf
+#Serviço com task nginx
+resource "aws_ecs_service" "MyNginx" {
+  name              = "MyNginx"
+  cluster           = aws_ecs_cluster.foo.id
+  task_definition   = aws_ecs_task_definition.nginx_task.arn
+  launch_type       = "FARGATE"
+  desired_count     = 1 
+  network_configuration {
+    subnets          = [aws_subnet.public_subnet_a.id]
+    security_groups  = [aws_security_group.ecs_tasks.id]
+    assign_public_ip = true
+
+  }
+  depends_on = [aws_ecs_task_definition.nginx_task]
+
+}
+
+```
+
+Já as tarefas definem quais conteiners devem ser executados e como devem ser configurados. No nosso caso iremos configurar um conteiner que use o modo de rede vpc definido anteriormente, tenha 256 de CPU e 512 de memória, além de ser compatível com o Fargate. Feito isso, o principal é a aplicação, onde configuramos para o conteiner buscar a imagem mais atual que o repositório Docker possui do Nginx e indicamos que a porta de acesso a esse conteiner será a 80 do protocolo tcp, a qual foi liberada no grupo de segurança feito inicialmente. Apesar do exemplo feito ter sido com Nginx existem inúmeros outras possibilidades.
+
+```tf
+# definição task nginx
+resource "aws_ecs_task_definition" "nginx_task" {
+  family                   = "nginx-task"
+  network_mode             = "awsvpc"
+  cpu                      = "256"
+  memory                   = "512"
+  requires_compatibilities = ["FARGATE"]
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  task_role_arn            = aws_iam_role.ecs_task_role.arn
+
+  container_definitions = <<TASK_DEFINITION
+  [
+    {
+      "name": "nginx-container",
+      "image": "nginx:latest",
+      "portMappings": [
+        {
+          "containerPort": 80,
+          "protocol": "tcp"
+        }
+      ]
+    }
+  ]
+  TASK_DEFINITION
+}
+```
+
 
 ## Como usar
 
